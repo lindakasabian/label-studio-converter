@@ -576,6 +576,10 @@ class Converter(object):
                     exc_info=True,
                 )
 
+            logger.info(item["output"].keys())
+            logger.info(item["output"].values())
+
+
             # skip tasks without annotations
             if not item['output']:
                 # image wasn't load and there are no labels
@@ -593,6 +597,7 @@ class Converter(object):
             if len(labels) == 0:
                 logger.debug(f'Empty bboxes for {item["output"]}')
                 continue
+
 
             for label in labels:
                 category_name = None
@@ -619,49 +624,100 @@ class Converter(object):
 
                 annotation_id = len(annotations)
 
-                if 'rectanglelabels' in label or 'labels' in label:
-                    x, y, w, h = self.rotated_rectangle(label)
+                logger.info(locals().keys())
 
-                    x = x * label["original_width"] / 100
-                    y = y * label["original_height"] / 100
-                    w = w * label["original_width"] / 100
-                    h = h * label["original_height"] / 100
+                if data_key != "ocr":
 
-                    annotations.append(
-                        {
-                            'id': annotation_id,
-                            'image_id': image_id,
-                            'category_id': category_id,
-                            'segmentation': [],
-                            'bbox': [x, y, w, h],
-                            'ignore': 0,
-                            'iscrowd': 0,
-                            'area': w * h,
-                        }
-                    )
-                elif "polygonlabels" in label:
-                    points_abs = [
-                        (x / 100 * width, y / 100 * height) for x, y in label["points"]
-                    ]
-                    x, y = zip(*points_abs)
+                    if 'rectanglelabels' in label or 'labels' in label:
+                        x, y, w, h = self.rotated_rectangle(label)
 
-                    annotations.append(
-                        {
-                            'id': annotation_id,
-                            'image_id': image_id,
-                            'category_id': category_id,
-                            'segmentation': [
-                                [coord for point in points_abs for coord in point]
-                            ],
-                            'bbox': get_polygon_bounding_box(x, y),
-                            'ignore': 0,
-                            'iscrowd': 0,
-                            'area': get_polygon_area(x, y),
-                        }
-                    )
-                else:
-                    raise ValueError("Unknown label type")
+                        x = x * label["original_width"] / 100
+                        y = y * label["original_height"] / 100
+                        w = w * label["original_width"] / 100
+                        h = h * label["original_height"] / 100
 
+                        annotations.append(
+                            {
+                                'id': annotation_id,
+                                'image_id': image_id,
+                                'category_id': category_id,
+                                'segmentation': [],
+                                'bbox': [x, y, w, h],
+                                'ignore': 0,
+                                'iscrowd': 0,
+                                'area': w * h,
+                            }
+                        )
+                    elif "polygonlabels" in label:
+                        points_abs = [
+                            (x / 100 * width, y / 100 * height) for x, y in label["points"]
+                        ]
+                        x, y = zip(*points_abs)
+
+                        annotations.append(
+                            {
+                                'id': annotation_id,
+                                'image_id': image_id,
+                                'category_id': category_id,
+                                'segmentation': [
+                                    [coord for point in points_abs for coord in point]
+                                ],
+                                'bbox': get_polygon_bounding_box(x, y),
+                                'ignore': 0,
+                                'iscrowd': 0,
+                                'area': get_polygon_area(x, y),
+                            }
+                        )
+                    else:
+                        raise ValueError("Unknown label type")
+                
+                elif data_key == "ocr":
+                    logger.info(label)
+                    if "width" in label and "height" in label:
+                        x, y, w, h = self.rotated_rectangle(label)
+
+                        x = x * label["original_width"] / 100
+                        y = y * label["original_height"] / 100
+                        w = w * label["original_width"] / 100
+                        h = h * label["original_height"] / 100
+
+                        annotations.append(
+                            {
+                                'id': annotation_id,
+                                'image_id': image_id,
+                                'category_id': category_id,
+                                'segmentation': [],
+                                'bbox': [x, y, w, h],
+                                'text': label["text"],
+                                'ignore': 0,
+                                'iscrowd': 0,
+                                'area': w * h,
+                            }
+                        )
+
+                    elif "points" in label:
+                        points_abs = [
+                            (x / 100 * width, y / 100 * height) for x, y in label["points"]
+                        ]
+                        x, y = zip(*points_abs)
+
+                        annotations.append(
+                            {
+                                'id': annotation_id,
+                                'image_id': image_id,
+                                'category_id': category_id,
+                                'segmentation': [
+                                    [coord for point in points_abs for coord in point]
+                                ],
+                                'bbox': get_polygon_bounding_box(x, y),
+                                'text': label["text"],
+                                'ignore': 0,
+                                'iscrowd': 0,
+                                'area': get_polygon_area(x, y),
+                            }
+                        )
+                    else:
+                        raise ValueError("Unknown label type")
                 if os.getenv('LABEL_STUDIO_FORCE_ANNOTATOR_EXPORT'):
                     annotations[-1].update({'annotator': get_annotator(item)})
 
@@ -811,25 +867,37 @@ class Converter(object):
                         categories.append({'id': category_id, 'name': category_name})
                     category_id = category_name_to_id[category_name]
 
-                    if "rectanglelabels" in label or 'labels' in label:
-                        x, y, w, h = self.rotated_rectangle(label)
-                        annotations.append(
-                            [
-                                category_id,
-                                (x + w / 2) / 100,
-                                (y + h / 2) / 100,
-                                w / 100,
-                                h / 100,
-                            ]
-                        )
-                    elif "polygonlabels" in label:
+                    logger.info(locals().keys())
+
+                    if data_key != "ocr":
+
+                        if "rectanglelabels" in label or 'labels' in label:
+                            logger.info(label)
+                            x, y, w, h = self.rotated_rectangle(label)
+                            annotations.append(
+                                [
+                                    category_id,
+                                    (x + w / 2) / 100,
+                                    (y + h / 2) / 100,
+                                    w / 100,
+                                    h / 100,
+                                ]
+                            )
+                        elif "polygonlabels" in label:
+                            points_abs = [(x / 100, y / 100) for x, y in label["points"]]
+                            annotations.append(
+                                [category_id]
+                                + [coord for point in points_abs for coord in point]
+                            )
+                        else:
+                            raise ValueError(f"Unknown label type {label}")
+                        
+                    if data_key == "ocr":
                         points_abs = [(x / 100, y / 100) for x, y in label["points"]]
                         annotations.append(
-                            [category_id]
-                            + [coord for point in points_abs for coord in point]
-                        )
-                    else:
-                        raise ValueError(f"Unknown label type {label}")
+                                [category_id]
+                                + [coord for point in points_abs for coord in point])
+
             with open(label_path, 'w') as f:
                 for annotation in annotations:
                     for idx, l in enumerate(annotation):
