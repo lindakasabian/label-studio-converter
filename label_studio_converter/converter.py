@@ -11,7 +11,7 @@ from shutil import copy2
 from enum import Enum
 from datetime import datetime
 from glob import glob
-from collections import defaultdict, Counter
+from collections import defaultdict
 from operator import itemgetter
 from copy import deepcopy
 from PIL import Image
