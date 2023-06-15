@@ -11,7 +11,7 @@ from shutil import copy2
 from enum import Enum
 from datetime import datetime
 from glob import glob
-from collections import defaultdict
+from collections import defaultdict, Counter
 from operator import itemgetter
 from copy import deepcopy
 from PIL import Image
@@ -576,9 +576,6 @@ class Converter(object):
                     exc_info=True,
                 )
 
-            logger.info(item["output"].keys())
-            logger.info(item["output"].values())
-
 
             # skip tasks without annotations
             if not item['output']:
@@ -589,14 +586,33 @@ class Converter(object):
                 logger.warning('No annotations found for item #' + str(item_idx))
                 continue
 
+            if data_key != "ocr":
             # concatenate results over all tag names
-            labels = []
-            for key in item['output']:
-                labels += item['output'][key]
+                labels = []
+                for key in item['output']:
+                    labels += item['output'][key]
 
-            if len(labels) == 0:
-                logger.debug(f'Empty bboxes for {item["output"]}')
-                continue
+                if len(labels) == 0:
+                    logger.debug(f'Empty bboxes for {item["output"]}')
+                    continue
+            
+            # ocr fix
+            elif data_key == "ocr":
+            
+                labels = []
+                ann_len = len(item["output"]["label"])
+                label_data = item["output"]["label"]
+                txt_data = item["output"]["transcription"]
+                assert ann_len == len(txt_data), "Something wrong with your data"
+                for i, item in enumerate(txt_data):
+                    logger.info(i)
+                    logger.info(item)
+                    item.update(label_data[i])
+                    labels.append(item)
+
+                if len(labels) == 0:
+                    logger.debug(f'Empty bboxes for {item["output"]}')
+                    continue 
 
 
             for label in labels:
@@ -672,7 +688,6 @@ class Converter(object):
                         raise ValueError("Unknown label type")
                 
                 elif data_key == "ocr":
-                    logger.info(label)
                     if "width" in label and "height" in label:
                         x, y, w, h = self.rotated_rectangle(label)
 
